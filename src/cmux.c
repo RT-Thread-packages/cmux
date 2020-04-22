@@ -31,21 +31,27 @@
 // basic mode flag for frame start and end
 #define CMUX_HEAD_FLAG (unsigned char)0xF9
 
+#define CMUX_DHCL_MASK       63         /* DLCI number is port number, 63 is the mask of DLCI; C/R bit is 1 when we send data */
+#define CMUX_DATA_MASK       127        /* when data length is out of 127( 0111 1111 ), we must use two bytes to describe data length in the cmux frame */
+#define CMUX_HIGH_DATA_MASK  32640      /* 32640 (‭ 0111 1111 1000 0000 ‬), the mask of high data bits */
+
 #define CMUX_COMMAND_IS(command, type) ((type & ~CMUX_ADDRESS_CR) == command)
 #define CMUX_PF_ISSET(frame) ((frame->control & CMUX_CONTROL_PF) == CMUX_CONTROL_PF)
 #define CMUX_FRAME_IS(type, frame) ((frame->control & ~CMUX_CONTROL_PF) == type)
 
-#define min(a,b) ((a)<=(b)?(a):(b))
+#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 /* increases buffer pointer by one and wraps around if necessary */
-#define INC_BUF_POINTER(buf,p) p++; if (p == buf->end_point) p = buf->data;
+#define INC_BUF_POINTER(buf, p)  \
+    (p)++;                       \
+    if ((p) == (buf)->end_point) \
+        (p) = (buf)->data;
 
 /* Tells, how many chars are saved into the buffer */
-#define cmux_buffer_length(buff) ((buff->read_point > buff->write_point) ? (CMUX_BUFFER_SIZE - (buff->read_point - buff->write_point)) : (buff->write_point - buff->read_point))
+#define cmux_buffer_length(buff) (((buff)->read_point > (buff)->write_point) ? (CMUX_BUFFER_SIZE - ((buff)->read_point - (buff)->write_point)) : ((buff)->write_point - (buff)->read_point))
 
 /* Tells, how much free space there is in the buffer */
-#define cmux_buffer_free(buff) ((buff->read_point > buff->write_point) ? (buff->read_point - buff->write_point) : (CMUX_BUFFER_SIZE - (buff->write_point - buff->read_point)))
-
+#define cmux_buffer_free(buff) (((buff)->read_point > (buff)->write_point) ? ((buff)->read_point - (buff)->write_point) : (CMUX_BUFFER_SIZE - ((buff)->write_point - (buff)->read_point)))
 
 #define CMUX_RECV_READ_MAX 32
 
@@ -54,26 +60,26 @@
 #else
 #define CMUX_THREAD_STACK_SIZE 512
 #endif
-#define CMUX_THREAD_PRIORITY   8
+#define CMUX_THREAD_PRIORITY 8
 
-#define CMUX_RECIEVE_RESET     0
-#define CMUX_RECIEVE_BEGIN     1
-#define CMUX_RECIEVE_PROCESS   2
-#define CMUX_RECIEVE_END       3
+#define CMUX_RECIEVE_RESET 0
+#define CMUX_RECIEVE_BEGIN 1
+#define CMUX_RECIEVE_PROCESS 2
+#define CMUX_RECIEVE_END 3
 
-#define CMUX_EVENT_RX_NOTIFY     1          /* serial incoming a byte */
-#define CMUX_EVENT_CHANNEL_OPEN  2
+#define CMUX_EVENT_RX_NOTIFY 1 /* serial incoming a byte */
+#define CMUX_EVENT_CHANNEL_OPEN 2
 #define CMUX_EVENT_CHANNEL_CLOSE 4
-#define CMUX_EVENT_CHANNEL_OPEN_REQ  8
+#define CMUX_EVENT_CHANNEL_OPEN_REQ 8
 #define CMUX_EVENT_CHANNEL_CLOSE_REQ 16
 #define CMUX_EVENT_FUNCTION_EXIT 32
 
-#define DBG_TAG    "cmux"
+#define DBG_TAG "cmux"
 
 #ifdef CMUX_DEBUG
-#define DBG_LVL   DBG_LOG
+#define DBG_LVL DBG_LOG
 #else
-#define DBG_LVL   DBG_INFO
+#define DBG_LVL DBG_INFO
 #endif
 #include <rtdbg.h>
 
@@ -119,9 +125,7 @@ static void hex_dump(const void *data, rt_size_t len)
 }
 #endif
 
-
 static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type, const char *data, int length);
-
 
 static rt_slist_t cmux_list = RT_SLIST_OBJECT_INIT(cmux_list);
 
@@ -155,7 +159,6 @@ struct cmux *cmux_object_find(const char *name)
     rt_hw_interrupt_enable(level);
     return RT_NULL;
 }
-
 
 /**
  * Receive callback function , send CMUX_EVENT_RX_NOTIFY event when uart acquire data
@@ -227,9 +230,14 @@ static struct cmux_buffer *cmux_buffer_init()
  */
 static void cmux_frame_destroy(struct cmux_frame *frame)
 {
-  if (frame->data_length > 0)
-    rt_free(frame->data);
-  rt_free(frame);
+    if ((frame->data_length > 0) && frame->data)
+    {
+        rt_free(frame->data);
+    }
+    if (frame)
+    {
+        rt_free(frame);
+    }
 }
 
 /**
@@ -268,10 +276,10 @@ static rt_err_t cmux_frame_push(struct cmux *cmux, int channel, struct cmux_fram
     struct frame *frame_new = RT_NULL;
     rt_uint16_t frame_len = cmux->vcoms[channel].frame_index;
 
-    if(frame_len <= CMUX_MAX_FRAME_LIST_LEN)
+    if (frame_len <= CMUX_MAX_FRAME_LIST_LEN)
     {
         frame_new = rt_malloc(sizeof(struct frame));
-        if(frame_new == RT_NULL)
+        if (frame_new == RT_NULL)
         {
             LOG_E("can't malloc <struct frame> to record data address.");
             return -RT_ENOMEM;
@@ -320,7 +328,7 @@ static struct cmux_frame *cmux_frame_pop(struct cmux *cmux, int channel)
     frame_list = &cmux->vcoms[channel].flist;
 
     frame_list_find = rt_slist_first(frame_list);
-    if(frame_list_find != RT_NULL)
+    if (frame_list_find != RT_NULL)
     {
         frame = rt_container_of(frame_list_find, struct frame, frame_list);
         frame_data = frame->frame;
@@ -379,7 +387,7 @@ rt_size_t cmux_buffer_write(struct cmux_buffer *buff, rt_uint8_t *input, rt_size
 static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
 {
     int end;
-    int length_needed = 5;      /* channel, type, length, fcs, flag */
+    int length_needed = 5; /* channel, type, length, fcs, flag */
     rt_uint8_t *data = RT_NULL;
     rt_uint8_t fcs = 0xFF;
     struct cmux_frame *frame = RT_NULL;
@@ -405,7 +413,7 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
     if (cmux_buffer_length(buffer) >= length_needed)
     {
         data = buffer->read_point;
-        frame =(struct cmux_frame *)rt_malloc(sizeof(struct cmux_frame));
+        frame = (struct cmux_frame *)rt_malloc(sizeof(struct cmux_frame));
         frame->data = RT_NULL;
 
         frame->channel = ((*data & 252) >> 2);
@@ -443,8 +451,8 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
         /* extract data */
         if (frame->data_length > 0)
         {
-            frame->data =(unsigned char *)rt_malloc(frame->data_length);
-            if ( frame->data != RT_NULL)
+            frame->data = (unsigned char *)rt_malloc(frame->data_length);
+            if (frame->data != RT_NULL)
             {
                 end = buffer->end_point - data;
                 if (frame->data_length > end)
@@ -495,7 +503,6 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
             }
             else
             {
-
             }
             INC_BUF_POINTER(buffer, data);
         }
@@ -520,7 +527,7 @@ static void cmux_recv_processdata(struct cmux *cmux, rt_uint8_t *buf, rt_size_t 
 
     frame = cmux_frame_parse(cmux->buffer);
 
-    if(frame != RT_NULL)
+    if (frame != RT_NULL)
     {
         /* distribute different data */
         if ((CMUX_FRAME_IS(CMUX_FRAME_UI, frame) || CMUX_FRAME_IS(CMUX_FRAME_UIH, frame)))
@@ -582,15 +589,15 @@ static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type
     int c, prefix_length = 4;
 
     /* EA=1, Command, let's add address */
-    prefix[1] = prefix[1] | ((63 & port) << 2);
+    prefix[1] = prefix[1] | ((CMUX_DHCL_MASK & port) << 2);
     /* cmux control field */
     prefix[2] = type;
 
-    if (length > 127)
+    if (length > CMUX_DATA_MASK)
     {
         prefix_length = 5;
-        prefix[3] = ((127 & length) << 1);
-        prefix[4] = (32640 & length) >> 7;
+        prefix[3] = ((CMUX_DATA_MASK & length) << 1);
+        prefix[4] = (CMUX_HIGH_DATA_MASK & length) >> 7;
     }
     else
     {
@@ -680,7 +687,7 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
     char event_name[RT_NAME_MAX] = {0};
     rt_base_t level;
 
-    if(_g_cmux == RT_NULL)
+    if (_g_cmux == RT_NULL)
     {
         _g_cmux = object;
     }
@@ -690,23 +697,23 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
     }
 
     object->dev = rt_device_find(name);
-    if(object->dev == RT_NULL)
+    if (object->dev == RT_NULL)
     {
         LOG_E("cmux can't find %s.", name);
         return -RT_EOK;
     }
 
     object->vcom_num = vcom_num;
-    object->vcoms = rt_malloc(vcom_num *sizeof(struct cmux_vcoms));
-    rt_memset(object->vcoms, 0, vcom_num *sizeof(struct cmux_vcoms));
-    if(object->vcoms == RT_NULL)
+    object->vcoms = rt_malloc(vcom_num * sizeof(struct cmux_vcoms));
+    rt_memset(object->vcoms, 0, vcom_num * sizeof(struct cmux_vcoms));
+    if (object->vcoms == RT_NULL)
     {
         LOG_E("cmux vcoms malloc failed.");
         return -RT_ENOMEM;
     }
 
     object->buffer = cmux_buffer_init();
-    if(object->buffer == RT_NULL)
+    if (object->buffer == RT_NULL)
     {
         LOG_E("cmux buffer malloc failed.");
         return -RT_ENOMEM;
@@ -714,7 +721,7 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
 
     rt_sprintf(event_name, "cmuxeve%d", count);
     object->event = rt_event_create(event_name, RT_IPC_FLAG_FIFO);
-    if(object->event == RT_NULL)
+    if (object->event == RT_NULL)
     {
         LOG_E("cmux event malloc failed.");
         return -RT_ENOMEM;
@@ -731,11 +738,11 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
 
     rt_sprintf(tid_name, "cmuxrec%d", count);
     object->recv_tid = rt_thread_create(tid_name,
-                                     (void (*)(void *parameter))cmux_recv_thread,
-                                     object,
-                                     CMUX_THREAD_STACK_SIZE,
-                                     CMUX_THREAD_PRIORITY,
-                                     20);
+                                        (void (*)(void *parameter))cmux_recv_thread,
+                                        object,
+                                        CMUX_THREAD_STACK_SIZE,
+                                        CMUX_THREAD_PRIORITY,
+                                        20);
     if (object->recv_tid == RT_NULL)
     {
         LOG_E("cmux receive thread create failed.");
@@ -760,17 +767,17 @@ rt_err_t cmux_start(struct cmux *object)
     /* uart transfer into cmux */
     rt_device_set_rx_indicate(object->dev, cmux_rx_ind);
 
-    if(object->ops->start != RT_NULL)
+    if (object->ops->start != RT_NULL)
     {
         result = object->ops->start(object);
-        if(result != RT_EOK)
+        if (result != RT_EOK)
             return result;
     }
 
-    if(object->recv_tid != RT_NULL)
+    if (object->recv_tid != RT_NULL)
     {
         result = rt_thread_startup(object->recv_tid);
-        if(result != RT_EOK)
+        if (result != RT_EOK)
         {
             LOG_D("cmux receive thread startup failed.");
             return result;
@@ -782,7 +789,7 @@ rt_err_t cmux_start(struct cmux *object)
 
     device = rt_device_find("cmux_ctl");
     result = rt_device_open(device, RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_DMA_RX);
-    if(result != RT_EOK)
+    if (result != RT_EOK)
     {
         LOG_E("cmux control channel open failed.");
     }
@@ -799,7 +806,7 @@ rt_err_t cmux_start(struct cmux *object)
  */
 rt_err_t cmux_stop(struct cmux *object)
 {
-    if(object->ops->stop != RT_NULL)
+    if (object->ops->stop != RT_NULL)
     {
         object->ops->stop(object);
     }
@@ -916,7 +923,7 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
     using_status = cmux->vcoms[(int)(dev->user_data)].frame_using_status;
 
     /* The previous frame has been transmitted finish. */
-    if(!using_status)
+    if (!using_status)
     {
         /* support fifo, we using the first frame */
         frame = cmux_frame_pop(cmux, (int)dev->user_data);
@@ -924,12 +931,12 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
         data = RT_NULL;
 
         /* can't find frame */
-        if(frame == RT_NULL)
+        if (frame == RT_NULL)
         {
             return 0;
         }
 
-        if(size >= frame->data_length)
+        if (size >= frame->data_length)
         {
             rt_memcpy(buffer, frame->data, frame->data_length);
             cmux_frame_destroy(frame);
@@ -946,12 +953,11 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
 
             return size;
         }
-
     }
     else
     {
         /* transmit the rest of frame */
-        if(length + size >= frame->data_length)
+        if (length + size >= frame->data_length)
         {
             rt_memcpy(buffer, data, frame->data_length - length);
             cmux_frame_destroy(frame);
@@ -987,15 +993,15 @@ rt_err_t cmux_attach(struct cmux *object, int link_port, const char *alias_name,
 {
     struct rt_device *device = &object->vcoms[link_port].device;
 
-    device->type        = RT_Device_Class_Char;
+    device->type = RT_Device_Class_Char;
     device->rx_indicate = RT_NULL;
     device->tx_complete = RT_NULL;
 
-    device->init    = RT_NULL;
-    device->open    = cmux_vcom_open;
-    device->close   = cmux_vcom_close;
-    device->read    = cmux_vcom_read;
-    device->write   = cmux_vcom_write;
+    device->init = RT_NULL;
+    device->open = cmux_vcom_open;
+    device->close = cmux_vcom_close;
+    device->read = cmux_vcom_read;
+    device->write = cmux_vcom_write;
     device->control = RT_NULL;
 
     device->user_data = (void *)link_port;
@@ -1003,7 +1009,7 @@ rt_err_t cmux_attach(struct cmux *object, int link_port, const char *alias_name,
     vcoms_cmux_frame_init(object, link_port);
 
     /* interrupt mode or dma mode is meaningless, because we don't have buffer for vcom */
-    if(flags & RT_DEVICE_FLAG_INT_RX)
+    if (flags & RT_DEVICE_FLAG_INT_RX)
         rt_device_register(device, alias_name, RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_STREAM | RT_DEVICE_FLAG_INT_RX);
     else
         rt_device_register(device, alias_name, RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_STREAM | RT_DEVICE_FLAG_DMA_RX);
@@ -1025,7 +1031,7 @@ rt_err_t cmux_detach(struct cmux *object, const char *alias_name)
     rt_device_t device = RT_NULL;
 
     device = rt_device_find(alias_name);
-    if(device->open_flag & RT_DEVICE_OFLAG_OPEN)
+    if (device->open_flag & RT_DEVICE_OFLAG_OPEN)
     {
         LOG_E("You should close vcom (%s) firstly.", device->parent.name);
         return -RT_ERROR;
