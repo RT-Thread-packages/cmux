@@ -2,41 +2,41 @@
 
 ## 1. 简介
 
-- cmux 软件包，其功能为在一个真实物理通道上虚拟出多个通道，使得可以同时在一个物理串口接口上存在多个会话。两个模块仅使用一个真实物理串口连接，可以使用软件包虚拟出多组串口，通过虚拟出的不同串口用于不同的通信场景。例如板载串口资源受限时，可以使用软件包以实现使用多个串口的目的。
+CMUX（Connection Multiplexing ），即串口多路复用，其功能主要在一个真实的物理通道上虚拟多个通道，每个虚拟通道上的连接和数据通讯可独立进行。
 
--  cmux 的常见使用场景有： 蜂窝模块的串口复用功能 -- GSM0707 / GSM0710 协议，使用 cmux( gsm ) + ppp 组合可以实现在实现 PPP 拨号上网的同时，提供 AT 命令和 MODEM 数据通道，实时获取模块状态而无需退出 PPP 功能。通过多路复用协议和蜂窝模组通讯，使得可以在拨号上网时可以同时拨打电话和收发短信。
+CMUX 软件包常用于蜂窝模块串口复用功能（PPP + AT 模式），以及串口硬件资源受限的设备。
 
-  cmux 软件包特点如下：
+CMUX 软件包特点如下：
 
-  - 可以由一个真实串口虚拟出多个串口
-  - 支持多种蜂窝模块
-  - 可以添加 PPP 功能
+- 支持通过真实串口虚拟出多个串口；
+- 支持所有基于 GSM0707/ 0710 协议的蜂窝模块；
+- 支持无缝接入 PPP 功能；
 
-  目前 CMUX 的 GSM 功能支持 Luat Air720, SIM7600, SIM800C 模块，后续会接入更多蜂窝模块。
+目前 CMUX 的 GSM 功能支持 Luat Air720, SIM7600, SIM800C 模块，后续会接入更多蜂窝模块。
 
-  ### 1.1 框架图
+### 1.1 框架图
 
-  ![](docs/figures/cmux_frame.png)
+![](docs/figures/cmux_frame.png)
 
 - CMUX 是一种类似于传输层的协议，用户使用时无法感知该层；数据传输依赖一个真实串口传输，cmux 层负责解析数据用以分发到不同的 virtual uart ；从而实现一个真实串口虚拟出多个 UART 的目的
 
 - CMUX 在应用场景中多用于 UART, 如有必要也可以支持 SPI 方式
-  
+
   ### 1.2 目录结构
 ```shell
 cmux
-├───docs 
-│   └───figures                     // 文档使用图片	
+├───docs
+│   └───figures                     // 文档使用图片
 ├───inc                             // 头文件
 │   │───gsm
-│   │   └─── cmux_chat.h    
-│   └─── cmux.h       
+│   │   └─── cmux_chat.h
+│   └─── cmux.h
 ├───sample                          // 示例文件
-│   └─── cmux_sample_gsm.c     
+│   └─── cmux_sample_gsm.c
 ├───src                             // 源码文件
 │   ├───gsm
-│   │   ├─── cmux_chat.c 
-│   │   └─── cmux_gsm.c  
+│   │   ├─── cmux_chat.c
+│   │   └─── cmux_gsm.c
 │   ├─── cmux_utils.c
 │   └─── cmux.c
 ├───LICENSE                         // 软件包许可证
@@ -177,10 +177,10 @@ ping www.baidu.com
 msh >ready
 msh >[D/main] cmux control channel has been open.
 [D/main] write data : 9
-[D/main] 15 ,Recieve  
+[D/main] 15 ,Recieve
 +CSQ: 29,99
 
-[D/main] 6 ,Recieve  
+[D/main] 6 ,Recieve
 OK
 ```
 在使用 PPP 功能的同时，可以使用虚拟出的 cmux_at 串口同时读取模块信号强度值，具体可以参考[<使用文档>](./docs/cmux_port.md)
