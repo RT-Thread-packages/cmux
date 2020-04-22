@@ -1,4 +1,4 @@
-# PPP 功能使用
+# 功能使用
 
 在 CMUX 中使用 PPP_DEVICE 与直接使用 PPP_DEVICE 的使用差别不大；使用最新版本的 PPP_DEVICE 可以做到 cmux 的兼容效果，无论是打开 cmux 功能均可以正常使用 PPP_DEVICE。
 
@@ -90,3 +90,10 @@
    ```
 
    还在考虑直接使用 at_client 功能，敬请期待。
+   
+4. 模块进入 cmux 后，无法通过命令主动退出，所以进入 cmux 需要特别注意；在 cmux_gsm.c 中修改逻辑
+
+   ![private control](./figures/private control.png)
+
+   * 模块已经进入 cmux 状态，无需使用 AT 命令进入 cmux 状态，可以不调用 modem_chat
+   * 模块状态未进入 cmux 状态，但是此次模块无任何响应，可以添加电源控制，重启设备。蜂窝模块重启时间较长，建议添加合适时间的延时，以提升系统效率

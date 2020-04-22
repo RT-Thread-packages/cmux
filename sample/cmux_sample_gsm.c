@@ -7,7 +7,7 @@
  * Date           Author         Notes
  * 2020-04-15    xiangxistu      the first version
  */
- 
+
 #include <cmux.h>
 #include <rtthread.h>
 
@@ -30,7 +30,7 @@
 
 struct cmux *sample = RT_NULL;
 
-int cmux_sample_start(void)
+int cmux_sample(void)
 {
     rt_err_t result;
     sample = cmux_object_find(CMUX_DEPEND_NAME);
@@ -69,36 +69,8 @@ int cmux_sample_start(void)
 end:
     return RT_EOK;
 }
+#ifdef CMUX_ATUO_INITIZATION
 INIT_APP_EXPORT(cmux_sample_start);
-MSH_CMD_EXPORT_ALIAS(cmux_sample_start, cmux_start, a sample of cmux function);
-
-int cmux_sample_stop(void)
-{
-    rt_err_t result;
-#ifdef CMUX_AT_NAME
-    result = cmux_detach(sample, CMUX_AT_NAME);
-    if(result != RT_EOK)
-    {
-        LOG_E("cmux object (%s) detach failed.", CMUX_AT_NAME);
-        goto end;
-    }
 #endif
-#ifdef CMUX_PPP_NAME
-    result = cmux_detach(sample, CMUX_PPP_NAME);
-    if(result != RT_EOK)
-    {
-        LOG_E("cmux object (%s) detach failed.", CMUX_PPP_NAME);
-        goto end;
-    }
-#endif
-    result = cmux_stop(sample);
-    if(result != RT_EOK)
-    {
-        LOG_E("cmux sample stop error.");
-        goto end;
-    }
+MSH_CMD_EXPORT_ALIAS(cmux_sample, cmux_start, a sample of cmux function);
 
-end:
-    return RT_EOK;
-}
-MSH_CMD_EXPORT_ALIAS(cmux_sample_stop, cmux_stop, a sample of cmux function);

@@ -16,17 +16,17 @@
 #include <cmux_chat.h>
 #endif
 
-#define DBG_TAG    "cmux.air720"
-
+#define DBG_TAG    "cmux.gsm"
 #ifdef CMUX_DEBUG
 #define DBG_LVL   DBG_LOG
 #else
 #define DBG_LVL   DBG_INFO
 #endif
-
 #include <rtdbg.h>
 
-struct cmux *air720 = RT_NULL;
+#define CMUX_CMD "AT+CMUX=0,0,5,127,10,3,30,10,2"
+
+struct cmux *gsm = RT_NULL;
 
 static const struct modem_chat_data cmd[] =
 {
@@ -36,12 +36,13 @@ static const struct modem_chat_data cmd[] =
 
 static rt_err_t cmux_at_command(struct rt_device *device)
 {
-    //private control
+    /* private control, you can add power control */
 
+//    rt_thread_mdelay(5000);
     return modem_chat(device, cmd, sizeof(cmd) / sizeof(cmd[0]));
 }
 
-rt_err_t air720_cmux_start(struct cmux *obj)
+static rt_err_t cmux_gsm_start(struct cmux *obj)
 {
     rt_err_t result = 0;
     struct rt_device *device = RT_NULL;
@@ -67,18 +68,18 @@ _end:
 }
 const struct cmux_ops cmux_ops =
 {
-    air720_cmux_start,
+    cmux_gsm_start,
     RT_NULL,
     RT_NULL
 };
 
-int cmux_air720_init(void)
+int cmux_gsm_init(void)
 {
-    air720 = rt_malloc(sizeof(struct cmux));
-    rt_memset(air720, 0, sizeof(struct cmux));
-    
-    air720->ops = &cmux_ops;
+    gsm = rt_malloc(sizeof(struct cmux));
+    rt_memset(gsm, 0, sizeof(struct cmux));
 
-    return cmux_init(air720, CMUX_DEPEND_NAME, CMUX_PORT_NUMBER, RT_NULL);
+    gsm->ops = &cmux_ops;
+
+    return cmux_init(gsm, CMUX_DEPEND_NAME, CMUX_PORT_NUMBER, RT_NULL);
 }
-INIT_COMPONENT_EXPORT(cmux_air720_init);
+INIT_COMPONENT_EXPORT(cmux_gsm_init);

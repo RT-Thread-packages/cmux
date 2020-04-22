@@ -96,13 +96,17 @@ STM32F407 + Air720H（手动拼接命令测试）
 cmux
 ├───docs 
 │   └───figures                     // 文档使用图片	
-├───class    
-│   └───cmux_air720.c               // 针对不同设备
-├───sample                          // 示例文件
-│   └─── sample.c     
 ├───inc                             // 头文件
+│   │───gsm
+│   │   └─── cmux_chat.h    
 │   └─── cmux.h       
-├───src                             // 移植文件
+├───sample                          // 示例文件
+│   └─── cmux_sample_gsm.c     
+├───src                             // 源码文件
+│   ├───gsm
+│   │   ├─── cmux_chat.c 
+│   │   └─── cmux_gsm.c  
+│   ├─── cmux_utils.c
 │   └─── cmux.c
 ├───LICENSE                         // 软件包许可证
 ├───README.md                       // 软件包使用说明
@@ -114,21 +118,22 @@ cmux
 1. CMUX 的帧结构介绍
 
    ```c
-   typedef struct cmux_buffer
+   struct cmux_buffer
    {
      rt_uint8_t data[CMUX_BUFFER_SIZE];
      rt_uint8_t *read_point;                          // 用于读取 CMUX 数据的指针
      rt_uint8_t *write_point;                         // 指向 CMUX 数据区的指针
      rt_uint8_t *end_point;                           // 指向 CMUX 数据区末尾的指针
      int flag_found;                                  // 是否找到 0xF9 帧头
-   } cmux_buffer;
+   };
    
-   typedef struct cmux_frame {
+    struct cmux_frame
+   {
      rt_uint8_t channel;                             // 地址域
      rt_uint8_t control;                             // 数据帧类型, SABM，UIH，UA; 控制域
      int data_length;                                // 数据长度
      rt_uint8_t *data;                               // 实际数据
-} cmux_frame;
+   };
    ```
    
 2. CMUX 不同帧类型介绍
@@ -160,19 +165,22 @@ cmux
 1. 需要实现的结构体
 
    ```c
-   typedef struct cmux
+   struct cmux
    {
        struct rt_device *dev;                        /* device object */
        const struct cmux_ops *ops;                   /* cmux device ops interface */
-       cmux_set_command_t cmd;                       /* CMUX start AT command */
        struct cmux_buffer *buffer;                   /* cmux buffer */
-       rt_thread_t *recv_tid;                        /* recieve thread point */
-       rt_uint8_t vcom_num;                          /* the cmux port number array */
-       struct cmux_vcom *vcom;                       /* virual serial device */
+       struct cmux_frame *frame;                     /* cmux frame point */
+       rt_thread_t recv_tid;                         /* receive thread point */
+       rt_uint8_t vcom_num;                          /* the cmux port number */
+       struct cmux_vcoms *vcoms;                     /* array */
+   
+       struct rt_event *event;                       /* internal communication */
+   
        rt_slist_t *list;                             /* cmux list */
    
        void *user_data;                              /* reserve */
-   }cmux;
+   };
    
    struct cmux_ops
    {

@@ -35,8 +35,25 @@
 #define CMUX_PF_ISSET(frame) ((frame->control & CMUX_CONTROL_PF) == CMUX_CONTROL_PF)
 #define CMUX_FRAME_IS(type, frame) ((frame->control & ~CMUX_CONTROL_PF) == type)
 
+#define min(a,b) ((a)<=(b)?(a):(b))
+
+/* increases buffer pointer by one and wraps around if necessary */
+#define INC_BUF_POINTER(buf,p) p++; if (p == buf->end_point) p = buf->data;
+
+/* Tells, how many chars are saved into the buffer */
+#define cmux_buffer_length(buff) ((buff->read_point > buff->write_point) ? (CMUX_BUFFER_SIZE - (buff->read_point - buff->write_point)) : (buff->write_point - buff->read_point))
+
+/* Tells, how much free space there is in the buffer */
+#define cmux_buffer_free(buff) ((buff->read_point > buff->write_point) ? (buff->read_point - buff->write_point) : (CMUX_BUFFER_SIZE - (buff->write_point - buff->read_point)))
+
+
 #define CMUX_RECV_READ_MAX 32
-#define CMUX_THREAD_STACK_SIZE 2048
+
+#ifdef CMUX_DEBUG
+#define CMUX_THREAD_STACK_SIZE 1024
+#else
+#define CMUX_THREAD_STACK_SIZE 512
+#endif
 #define CMUX_THREAD_PRIORITY   8
 
 #define CMUX_RECIEVE_RESET     0
@@ -44,7 +61,7 @@
 #define CMUX_RECIEVE_PROCESS   2
 #define CMUX_RECIEVE_END       3
 
-#define CMUX_EVENT_RX_NOTIFY     1   // serial incoming a byte
+#define CMUX_EVENT_RX_NOTIFY     1          /* serial incoming a byte */
 #define CMUX_EVENT_CHANNEL_OPEN  2
 #define CMUX_EVENT_CHANNEL_CLOSE 4
 #define CMUX_EVENT_CHANNEL_OPEN_REQ  8
@@ -85,7 +102,7 @@ static void hex_dump(const void *data, rt_size_t len)
             rt_sprintf(p, "%02x ", (unsigned char)src[i]);
             p += 3;
         }
-        memset(p, ' ', (maxlen - curlen) * 3);
+        rt_memset(p, ' ', (maxlen - curlen) * 3);
         p += (maxlen - curlen) * 3;
         *p++ = '|';
         *p++ = ' ';
@@ -274,6 +291,7 @@ static rt_err_t cmux_frame_push(struct cmux *cmux, int channel, struct cmux_fram
         LOG_D("new message for channel(%d) is append, Message total: %d.", channel, ++cmux->vcoms[channel].frame_index);
 
 #ifdef CMUX_DEBUG
+        LOG_D("CMUX_RX:");
         hex_dump(frame->data, frame->data_length);
 #endif
         return RT_EOK;
@@ -365,7 +383,7 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
     rt_uint8_t *data = RT_NULL;
     rt_uint8_t fcs = 0xFF;
     struct cmux_frame *frame = RT_NULL;
-    
+
     extern rt_uint8_t cmux_crctable[256];
 
     /* Find start flag */
@@ -517,7 +535,7 @@ static void cmux_recv_processdata(struct cmux *cmux, rt_uint8_t *buf, rt_size_t 
             else
             {
                 /* control channel command */
-                LOG_E("control channel command haven't support.");
+                LOG_W("control channel command haven't support.");
             }
         }
         else
@@ -526,7 +544,6 @@ static void cmux_recv_processdata(struct cmux *cmux, rt_uint8_t *buf, rt_size_t 
             {
             case CMUX_FRAME_UA:
                 LOG_D("This is UA frame for channel(%d).", frame->channel);
-                rt_event_send(cmux->event, CMUX_EVENT_CHANNEL_OPEN);
 
                 break;
             case CMUX_FRAME_DM:
@@ -603,7 +620,10 @@ static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type
         LOG_D("Couldn't write the whole postfix to the serial port for the virtual port %d. Wrote only %d bytes.", port, c);
         return 0;
     }
-
+#ifdef CMUX_DEBUG
+    LOG_D("CMUX_TX:");
+    hex_dump(data, length);
+#endif
     return length;
 }
 
