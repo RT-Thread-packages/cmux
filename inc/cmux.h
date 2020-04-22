@@ -8,7 +8,14 @@
  * 2020-04-15    xiangxistu      the first version
  */
 
+#ifndef __CMUX_H__
+#define __CMUX_H__
+
 #include <rtdef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define CMUX_BUFFER_SIZE   2048
 
@@ -17,12 +24,12 @@
 
 struct cmux_buffer
 {
-  rt_uint8_t data[CMUX_BUFFER_SIZE];                        /* cmux data buffer */
-  rt_uint8_t *read_point;
-  rt_uint8_t *write_point;
-  rt_uint8_t *end_point;
-  int flag_found;                                          /* the flag whether you find cmux frame */
-} cmux_buffer;
+    rt_uint8_t data[CMUX_BUFFER_SIZE];                    /* cmux data buffer */
+    rt_uint8_t *read_point;
+    rt_uint8_t *write_point;
+    rt_uint8_t *end_point;
+    int flag_found;                                       /* the flag whether you find cmux frame */
+};
 
 struct cmux_frame
 {
@@ -30,14 +37,14 @@ struct cmux_frame
     rt_uint8_t control;                                   /* the type of frame */
     int data_length;                                      /* frame length */
     rt_uint8_t *data;                                     /* the point for cmux data */
-} cmux_frame;
+};
 
-typedef struct frame
+struct frame
 {
     struct cmux_frame *frame;                             /* the point for cmux frame */
 
     rt_slist_t frame_list;                                /* slist for different virtual serial */
-}frame;
+};
 
 struct cmux_vcoms
 {
@@ -48,7 +55,7 @@ struct cmux_vcoms
     rt_uint16_t frame_index;                              /* the length of flist */
 
     rt_bool_t frame_using_status;                         /* This is designed for long frame when we read data; the flag will be "1" when long frame haven't reading done */
-}cmux_vcoms;
+};
 
 struct cmux
 {
@@ -65,7 +72,7 @@ struct cmux
     rt_slist_t list;                                      /* cmux list */
 
     void *user_data;                                      /* reserve */
-}cmux;
+};
 
 struct cmux_ops
 {
@@ -86,3 +93,9 @@ rt_err_t cmux_detach(struct cmux *object, const char *alias_name);
 /* cmux_utils */
 rt_uint8_t cmux_frame_check(const rt_uint8_t *input, int length);
 struct cmux *cmux_object_find(const char *name);
+
+#ifdef  __cplusplus
+    }
+#endif
+
+#endif  /* __CMUX_H__ */

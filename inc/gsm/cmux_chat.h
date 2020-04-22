@@ -9,11 +9,15 @@
  * 2020-04-13     xiangxistu      transplant into cmux
  */
 
-#ifndef __MODEM_CHAT_H__
-#define __MODEM_CHAT_H__
+#ifndef __CMUX_CHAT_H__
+#define __CMUX_CHAT_H__
 
 #include <rtthread.h>
 #include <rtdevice.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MODEM_CHAT_RESP_LIST(F) \
     F(MODEM_CHAT_RESP_OK,         "OK"), \
@@ -37,4 +41,8 @@ struct modem_chat_data {
 
 rt_err_t modem_chat(rt_device_t serial, const struct modem_chat_data *data, rt_size_t len);
 
-#endif  /* __MODEM_CHAT_H__ */
+#ifdef  __cplusplus
+    }
+#endif
+
+#endif  /* __CMUX_CHAT_H__ */
