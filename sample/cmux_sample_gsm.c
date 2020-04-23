@@ -28,7 +28,6 @@
 #include <rtdbg.h>
 
 struct cmux *sample = RT_NULL;
-#define
 int cmux_sample(void)
 {
     rt_err_t result;
@@ -71,6 +70,6 @@ end:
     return RT_EOK;
 }
 #ifdef CMUX_ATUO_INITIZATION
-INIT_APP_EXPORT(cmux_sample_start);
+INIT_APP_EXPORT(cmux_sample);
 #endif
 MSH_CMD_EXPORT_ALIAS(cmux_sample, cmux_start, a sample of cmux function);
