@@ -77,47 +77,51 @@ cmux 软件包初始化函数如下所示：
 **cmux 功能启动函数，该函数自动调用**
 
 ```c
-int cmux_sample_start(void)
+int cmux_sample(void)
 {
     rt_err_t result;
+
+    /* find cmux object through the actual serial name < the actual serial has been related in the cmux.c file > */
     sample = cmux_object_find(CMUX_DEPEND_NAME);
-    if(sample == RT_NULL)
+    if (sample == RT_NULL)
     {
         result = -RT_ERROR;
         LOG_E("Can't find %s", CMUX_DEPEND_NAME);
         goto end;
     }
-    result =cmux_start(sample);
-    if(result != RT_EOK)
+    /* startup the cmux receive thread, attach control chananel and open it */
+    result = cmux_start(sample);
+    if (result != RT_EOK)
     {
         LOG_E("cmux sample start error. Can't find %s", CMUX_DEPEND_NAME);
         goto end;
     }
     LOG_I("cmux sample (%s) start successful.", CMUX_DEPEND_NAME);
-#ifdef CMUX_AT_NAME
-    result = cmux_attach(sample, CMUX_AT_PORT,  CMUX_AT_NAME, RT_DEVICE_FLAG_DMA_RX, RT_NULL);
-    if(result != RT_EOK)
+
+    /* attach AT function into cmux */
+    result = cmux_attach(sample, CMUX_AT_PORT, CMUX_AT_NAME, RT_DEVICE_FLAG_DMA_RX, RT_NULL);
+    if (result != RT_EOK)
     {
         LOG_E("cmux attach (%s) failed.", CMUX_AT_NAME);
         goto end;
     }
     LOG_I("cmux object channel (%s) attach successful.", CMUX_AT_NAME);
-#endif
-#ifdef CMUX_PPP_NAME
+
+    /* attach PPP function into cmux */
     result = cmux_attach(sample, CMUX_PPP_PORT, CMUX_PPP_NAME, RT_DEVICE_FLAG_DMA_RX, RT_NULL);
-    if(result != RT_EOK)
+    if (result != RT_EOK)
     {
         LOG_E("cmux attach %s failed.", CMUX_PPP_NAME);
         goto end;
     }
     LOG_I("cmux object channel (%s) attach successful.", CMUX_PPP_NAME);
-#endif
-
 end:
     return RT_EOK;
 }
+#ifdef CMUX_ATUO_INITIZATION
 // 自动初始化
 INIT_APP_EXPORT(cmux_sample_start);
+#endif
 // 命令导出到MSH( cmux_sample_start 变更为cmux_start )
 MSH_CMD_EXPORT_ALIAS(cmux_sample_start, cmux_start, a sample of cmux function);
 ```
