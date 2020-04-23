@@ -214,7 +214,7 @@ static struct cmux_buffer *cmux_buffer_init()
     {
         return RT_NULL;
     }
-    rt_memset(buff, 0, sizeof(cmux_buffer));
+    rt_memset(buff, 0, sizeof(struct cmux_buffer));
     buff->read_point = buff->data;
     buff->write_point = buff->data;
     buff->end_point = buff->data + CMUX_BUFFER_SIZE;
@@ -977,6 +977,19 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
     }
 }
 
+/* virtual serial ops */
+#ifdef RT_USING_DEVICE_OPS
+const struct rt_device_ops cmux_device_ops =
+{
+    RT_NULL,
+    cmux_vcom_open,
+    cmux_vcom_close,
+    cmux_vcom_read,
+    cmux_vcom_write,
+    RT_NULL,
+};
+#endif
+
 /**
  * attach cmux into cmux object
  *
@@ -997,12 +1010,16 @@ rt_err_t cmux_attach(struct cmux *object, int link_port, const char *alias_name,
     device->rx_indicate = RT_NULL;
     device->tx_complete = RT_NULL;
 
+#ifdef RT_USING_DEVICE_OPS
+    device->ops = &cmux_device_ops;
+#else
     device->init = RT_NULL;
     device->open = cmux_vcom_open;
     device->close = cmux_vcom_close;
     device->read = cmux_vcom_read;
     device->write = cmux_vcom_write;
     device->control = RT_NULL;
+#endif
 
     device->user_data = (void *)link_port;
 
