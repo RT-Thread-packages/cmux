@@ -543,6 +543,7 @@ static void cmux_recv_processdata(struct cmux *cmux, rt_uint8_t *buf, rt_size_t 
             {
                 /* control channel command */
                 LOG_W("control channel command haven't support.");
+				cmux_frame_destroy(frame);
             }
         }
         else
@@ -566,6 +567,7 @@ static void cmux_recv_processdata(struct cmux *cmux, rt_uint8_t *buf, rt_size_t 
 
                 break;
             }
+			cmux_frame_destroy(frame);
         }
     }
 }
