@@ -54,6 +54,8 @@ struct cmux_vcoms
 
     rt_uint16_t frame_index;                              /* the length of flist */
 
+    rt_uint8_t link_port;                                 /* link port id */
+
     rt_bool_t frame_using_status;                         /* This is designed for long frame when we read data; the flag will be "1" when long frame haven't reading done */
 };
 
