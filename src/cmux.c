@@ -916,70 +916,38 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
                                 void *buffer,
                                 rt_size_t size)
 {
-    static struct cmux_frame *frame = RT_NULL;
-    static rt_size_t length = 0;
-    static rt_uint8_t *data = RT_NULL;
     struct cmux_vcoms *vcom = (struct cmux_vcoms *)dev;
-
-    struct cmux *cmux = RT_NULL;
-    rt_bool_t using_status = 0;
-
-    cmux = _g_cmux;
-    using_status = vcom->frame_using_status;
+    rt_size_t remain_size = 0;
 
     /* The previous frame has been transmitted finish. */
-    if (!using_status)
+    if (vcom->reading_frame == RT_NULL)
     {
         /* support fifo, we using the first frame */
-        frame = cmux_frame_pop(cmux, (int)vcom->link_port);
-        length = 0;
-        data = RT_NULL;
-
-        /* can't find frame */
-        if (frame == RT_NULL)
+        vcom->reading_pos = 0;
+        vcom->reading_frame = cmux_frame_pop(_g_cmux, (int)vcom->link_port);
+        if (vcom->reading_frame == RT_NULL)/* can't find frame */
         {
             return 0;
         }
-
-        if (size >= frame->data_length)
-        {
-            rt_memcpy(buffer, frame->data, frame->data_length);
-            cmux_frame_destroy(frame);
-
-            return frame->data_length;
-        }
-        else
-        {
-            data = frame->data;
-            vcom->frame_using_status = 1;
-            rt_memcpy(buffer, data, size);
-            data = data + size;
-            length = length + size;
-
-            return size;
-        }
     }
-    else
+
+    remain_size = vcom->reading_frame->data_length - vcom->reading_pos;
+    if (size > remain_size)
     {
-        /* transmit the rest of frame */
-        if (length + size >= frame->data_length)
-        {
-            rt_memcpy(buffer, data, frame->data_length - length);
-            cmux_frame_destroy(frame);
-
-            vcom->frame_using_status = 0;
-
-            return frame->data_length - length;
-        }
-        else
-        {
-            rt_memcpy(buffer, data, size);
-            data = data + size;
-            length = length + size;
-
-            return size;
-        }
+        size = remain_size;
     }
+    
+    rt_memcpy(buffer, vcom->reading_frame->data + vcom->reading_pos, size);
+    vcom->reading_pos += size;
+
+    if (vcom->reading_pos >= vcom->reading_frame->data_length)
+    {
+        cmux_frame_destroy(vcom->reading_frame);
+        vcom->reading_frame = RT_NULL;
+        vcom->reading_pos = 0;
+    }
+
+    return size;
 }
 
 /* virtual serial ops */

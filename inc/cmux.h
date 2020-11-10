@@ -51,12 +51,11 @@ struct cmux_vcoms
     struct rt_device device;                              /* virtual device */
 
     rt_slist_t flist;                                     /* head of frame_list */
-
     rt_uint16_t frame_index;                              /* the length of flist */
-
     rt_uint8_t link_port;                                 /* link port id */
-
-    rt_bool_t frame_using_status;                         /* This is designed for long frame when we read data; the flag will be "1" when long frame haven't reading done */
+    rt_uint8_t rev;
+    rt_size_t reading_pos;                                /* offset pos of reading data */
+    struct cmux_frame *reading_frame;                     /* frame of reading data */
 };
 
 struct cmux
