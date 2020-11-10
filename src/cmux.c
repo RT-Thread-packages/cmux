@@ -171,10 +171,8 @@ struct cmux *cmux_object_find(const char *name)
 static rt_err_t cmux_rx_ind(rt_device_t dev, rt_size_t size)
 {
     RT_ASSERT(dev != RT_NULL);
-    struct cmux *cmux = RT_NULL;
-
-    cmux = _g_cmux;
-
+    struct cmux *cmux = (struct cmux *)(dev->user_data);
+    
     /* when receive data from uart , send event to wake up receive thread */
     rt_event_send(cmux->event, CMUX_EVENT_RX_NOTIFY);
 
@@ -767,6 +765,7 @@ rt_err_t cmux_start(struct cmux *object)
     struct rt_device *device = RT_NULL;
 
     /* uart transfer into cmux */
+    object->dev->user_data = (void *)object;
     rt_device_set_rx_indicate(object->dev, cmux_rx_ind);
 
     if (object->ops->start != RT_NULL)
