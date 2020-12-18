@@ -845,13 +845,14 @@ static rt_err_t cmux_vcom_open(rt_device_t dev, rt_uint16_t oflag)
 {
     rt_err_t result = RT_EOK;
     struct cmux *object = RT_NULL;
+    struct cmux_vcoms *vcom = (struct cmux_vcoms *)dev;
 
     RT_ASSERT(dev != RT_NULL);
 
     object = _g_cmux;
 
     /* establish virtual connect channel */
-    cmux_send_data(object->dev, (int)dev->user_data, CMUX_FRAME_SABM | CMUX_CONTROL_PF, RT_NULL, 0);
+    cmux_send_data(object->dev, (int)vcom->link_port, CMUX_FRAME_SABM | CMUX_CONTROL_PF, RT_NULL, 0);
 
     return result;
 }
@@ -867,10 +868,11 @@ static rt_err_t cmux_vcom_close(rt_device_t dev)
 {
     rt_err_t result = RT_EOK;
     struct cmux *object = RT_NULL;
+    struct cmux_vcoms *vcom = (struct cmux_vcoms *)dev;
 
     object = _g_cmux;
 
-    cmux_send_data(object->dev, (int)dev->user_data, CMUX_FRAME_DISC | CMUX_CONTROL_PF, RT_NULL, 0);
+    cmux_send_data(object->dev, (int)vcom->link_port, CMUX_FRAME_DISC | CMUX_CONTROL_PF, RT_NULL, 0);
 
     return result;
 }
@@ -891,11 +893,12 @@ static rt_size_t cmux_vcom_write(struct rt_device *dev,
                                  rt_size_t size)
 {
     struct cmux *cmux = RT_NULL;
+    struct cmux_vcoms *vcom = (struct cmux_vcoms *)dev;
     rt_size_t len;
     cmux = _g_cmux;
 
     /* use virtual serial, we can write data into actual serial directly. */
-    len = cmux_send_data(cmux->dev, (int)dev->user_data, CMUX_FRAME_UIH, buffer, size);
+    len = cmux_send_data(cmux->dev, (int)vcom->link_port, CMUX_FRAME_UIH, buffer, size);
     return len;
 }
 
@@ -917,18 +920,19 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
     static struct cmux_frame *frame = RT_NULL;
     static rt_size_t length = 0;
     static rt_uint8_t *data = RT_NULL;
+    struct cmux_vcoms *vcom = (struct cmux_vcoms *)dev;
 
     struct cmux *cmux = RT_NULL;
     rt_bool_t using_status = 0;
 
     cmux = _g_cmux;
-    using_status = cmux->vcoms[(int)(dev->user_data)].frame_using_status;
+    using_status = vcom->frame_using_status;
 
     /* The previous frame has been transmitted finish. */
     if (!using_status)
     {
         /* support fifo, we using the first frame */
-        frame = cmux_frame_pop(cmux, (int)dev->user_data);
+        frame = cmux_frame_pop(cmux, (int)vcom->link_port);
         length = 0;
         data = RT_NULL;
 
@@ -948,7 +952,7 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
         else
         {
             data = frame->data;
-            cmux->vcoms[(int)(dev->user_data)].frame_using_status = 1;
+            vcom->frame_using_status = 1;
             rt_memcpy(buffer, data, size);
             data = data + size;
             length = length + size;
@@ -964,7 +968,7 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
             rt_memcpy(buffer, data, frame->data_length - length);
             cmux_frame_destroy(frame);
 
-            cmux->vcoms[(int)(dev->user_data)].frame_using_status = 0;
+            vcom->frame_using_status = 0;
 
             return frame->data_length - length;
         }
@@ -1023,7 +1027,7 @@ rt_err_t cmux_attach(struct cmux *object, int link_port, const char *alias_name,
     device->control = RT_NULL;
 #endif
 
-    device->user_data = (void *)link_port;
+    object->vcoms[link_port].link_port = (rt_uint8_t)link_port;
 
     vcoms_cmux_frame_init(object, link_port);
 
