@@ -24,7 +24,7 @@
 #endif
 #include <rtdbg.h>
 
-#define CMUX_CMD "AT+CMUX=0,0,5,127,10,3,30,10,2"
+#define CMUX_CMD "AT+CMUX=0"
 
 struct cmux *gsm = RT_NULL;
 

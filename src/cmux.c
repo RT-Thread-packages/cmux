@@ -430,20 +430,14 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
 
         frame->data_length = (*data & 254) >> 1;
         fcs = cmux_crctable[fcs ^ *data];
+        /* frame data length more than 127 bytes */
         if ((*data & 1) == 0)
         {
-            /* Current specify (version 7.1.0) states these kind of frames to be invalid
-            * Long lost of sync might be caused if we would expect a long
-            * frame because of an error in length field.
-                INC_BUF_POINTER(buf,data);
-                frame->data_length += (*data*128);
-                fcs = cmux_crctable[fcs^*data];
-                length_needed++;
-            */
-            cmux_frame_destroy(frame);
-            buffer->read_point = data;
-            buffer->flag_found = 0;
-            return cmux_frame_parse(buffer);
+            INC_BUF_POINTER(buffer,data);
+            frame->data_length += (*data*128);
+            fcs = cmux_crctable[fcs^*data];
+            length_needed++;
+            LOG_D("len_need: %d, frame_data_len: %d.", length_needed, frame->data_length);
         }
         length_needed += frame->data_length;
         if (!(cmux_buffer_length(buffer) >= length_needed))
