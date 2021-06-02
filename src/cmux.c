@@ -197,6 +197,10 @@ void cmux_vcom_isr(struct cmux *cmux, rt_uint8_t port, rt_size_t size)
     {
         cmux->vcoms[port].device.rx_indicate(&cmux->vcoms[port].device, size);
     }
+    else
+    {
+        LOG_W("channel[%02d] haven appended data, please set rx_indicate and clear receive data.", port);
+    }
 }
 
 /**
