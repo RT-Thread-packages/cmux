@@ -197,6 +197,10 @@ void cmux_vcom_isr(struct cmux *cmux, rt_uint8_t port, rt_size_t size)
     {
         cmux->vcoms[port].device.rx_indicate(&cmux->vcoms[port].device, size);
     }
+    else
+    {
+        LOG_W("channel[%02d] haven appended data, please set rx_indicate and clear receive data.", port);
+    }
 }
 
 /**
@@ -426,20 +430,14 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
 
         frame->data_length = (*data & 254) >> 1;
         fcs = cmux_crctable[fcs ^ *data];
+        /* frame data length more than 127 bytes */
         if ((*data & 1) == 0)
         {
-            /* Current specify (version 7.1.0) states these kind of frames to be invalid
-            * Long lost of sync might be caused if we would expect a long
-            * frame because of an error in length field.
-                INC_BUF_POINTER(buf,data);
-                frame->data_length += (*data*128);
-                fcs = cmux_crctable[fcs^*data];
-                length_needed++;
-            */
-            cmux_frame_destroy(frame);
-            buffer->read_point = data;
-            buffer->flag_found = 0;
-            return cmux_frame_parse(buffer);
+            INC_BUF_POINTER(buffer,data);
+            frame->data_length += (*data*128);
+            fcs = cmux_crctable[fcs^*data];
+            length_needed++;
+            LOG_D("len_need: %d, frame_data_len: %d.", length_needed, frame->data_length);
         }
         length_needed += frame->data_length;
         if (!(cmux_buffer_length(buffer) >= length_needed))
@@ -1010,8 +1008,16 @@ const struct rt_device_ops cmux_device_ops =
  */
 rt_err_t cmux_attach(struct cmux *object, int link_port, const char *alias_name, rt_uint16_t flags, void *user_data)
 {
-    struct rt_device *device = &object->vcoms[link_port].device;
+    RT_ASSERT(object != RT_NULL);
+    struct rt_device *device = RT_NULL;
 
+    if(link_port >= object->vcom_num)
+    {
+        LOG_E("PORT[%02d] attach failed, please increase CMUX_PORT_NUMBER in the env.", link_port);
+        return -RT_EINVAL;
+    }
+
+    device = &object->vcoms[link_port].device;
     device->type = RT_Device_Class_Char;
     device->rx_indicate = RT_NULL;
     device->tx_complete = RT_NULL;
