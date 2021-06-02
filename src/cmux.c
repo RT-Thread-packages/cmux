@@ -1014,8 +1014,16 @@ const struct rt_device_ops cmux_device_ops =
  */
 rt_err_t cmux_attach(struct cmux *object, int link_port, const char *alias_name, rt_uint16_t flags, void *user_data)
 {
-    struct rt_device *device = &object->vcoms[link_port].device;
+    RT_ASSERT(object != RT_NULL);
+    struct rt_device *device = RT_NULL;
 
+    if(link_port >= object->vcom_num)
+    {
+        LOG_E("PORT[%02d] attach failed, please increase CMUX_PORT_NUMBER in the env.", link_port);
+        return -RT_EINVAL;
+    }
+
+    device = &object->vcoms[link_port].device;
     device->type = RT_Device_Class_Char;
     device->rx_indicate = RT_NULL;
     device->tx_complete = RT_NULL;
