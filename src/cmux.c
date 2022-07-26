@@ -915,9 +915,6 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
                                 void *buffer,
                                 rt_size_t size)
 {
-    static struct cmux_frame *frame = RT_NULL;
-    static rt_size_t length = 0;
-    static rt_uint8_t *data = RT_NULL;
     struct cmux_vcoms *vcom = (struct cmux_vcoms *)dev;
 
     struct cmux *cmux = RT_NULL;
@@ -930,30 +927,30 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
     if (!using_status)
     {
         /* support fifo, we using the first frame */
-        frame = cmux_frame_pop(cmux, (int)vcom->link_port);
-        length = 0;
-        data = RT_NULL;
+        vcom->frame = cmux_frame_pop(cmux, (int)vcom->link_port);
+        vcom->length = 0;
+        vcom->data = RT_NULL;
 
         /* can't find frame */
-        if (frame == RT_NULL)
+        if (vcom->frame == RT_NULL)
         {
             return 0;
         }
 
-        if (size >= frame->data_length)
+        if (size >= vcom->frame->data_length)
         {
-            rt_memcpy(buffer, frame->data, frame->data_length);
-            cmux_frame_destroy(frame);
+            rt_memcpy(buffer, vcom->frame->data, vcom->frame->data_length);
+            cmux_frame_destroy(vcom->frame);
 
-            return frame->data_length;
+            return vcom->frame->data_length;
         }
         else
         {
-            data = frame->data;
+            vcom->data = vcom->frame->data;
             vcom->frame_using_status = 1;
-            rt_memcpy(buffer, data, size);
-            data = data + size;
-            length = length + size;
+            rt_memcpy(buffer, vcom->data, size);
+            vcom->data = vcom->data + size;
+            vcom->length = vcom->length + size;
 
             return size;
         }
@@ -961,20 +958,20 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
     else
     {
         /* transmit the rest of frame */
-        if (length + size >= frame->data_length)
+        if (vcom->length + size >= vcom->frame->data_length)
         {
-            rt_memcpy(buffer, data, frame->data_length - length);
-            cmux_frame_destroy(frame);
+            rt_memcpy(buffer, vcom->data, vcom->frame->data_length - vcom->length);
+            cmux_frame_destroy(vcom->frame);
 
             vcom->frame_using_status = 0;
 
-            return frame->data_length - length;
+            return vcom->frame->data_length - vcom->length;
         }
         else
         {
-            rt_memcpy(buffer, data, size);
-            data = data + size;
-            length = length + size;
+            rt_memcpy(buffer, vcom->data, size);
+            vcom->data = vcom->data + size;
+            vcom->length = vcom->length + size;
 
             return size;
         }

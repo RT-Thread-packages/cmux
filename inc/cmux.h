@@ -57,6 +57,12 @@ struct cmux_vcoms
     rt_uint8_t link_port;                                 /* link port id */
 
     rt_bool_t frame_using_status;                         /* This is designed for long frame when we read data; the flag will be "1" when long frame haven't reading done */
+
+    struct cmux_frame *frame;
+
+    rt_size_t length;
+
+    rt_uint8_t *data;
 };
 
 struct cmux
