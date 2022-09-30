@@ -683,8 +683,8 @@ static int cmux_recv_thread(struct cmux *cmux)
 rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, void *user_data)
 {
     static rt_uint8_t count = 1;
-    char tid_name[RT_NAME_MAX] = {0};
-    char event_name[RT_NAME_MAX] = {0};
+    char tid_name[16] = {0};
+    char event_name[16] = {0};
     rt_base_t level;
 
     if (_g_cmux == RT_NULL)
@@ -719,7 +719,7 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
         return -RT_ENOMEM;
     }
 
-    rt_sprintf(event_name, "cmuxeve%d", count);
+    rt_snprintf(event_name, sizeof(event_name), "cmuxevt%d", count);
     object->event = rt_event_create(event_name, RT_IPC_FLAG_FIFO);
     if (object->event == RT_NULL)
     {
@@ -736,7 +736,7 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
 
     rt_hw_interrupt_enable(level);
 
-    rt_sprintf(tid_name, "cmuxrec%d", count);
+    rt_snprintf(tid_name, sizeof(tid_name), "cmuxrecv%d", count);
     object->recv_tid = rt_thread_create(tid_name,
                                         (void (*)(void *parameter))cmux_recv_thread,
                                         object,
