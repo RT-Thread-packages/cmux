@@ -56,9 +56,9 @@
 #define CMUX_RECV_READ_MAX 32
 
 #ifdef CMUX_DEBUG
-#define CMUX_THREAD_STACK_SIZE 1024
+#define CMUX_THREAD_STACK_SIZE 1536
 #else
-#define CMUX_THREAD_STACK_SIZE 512
+#define CMUX_THREAD_STACK_SIZE 1024
 #endif
 #define CMUX_THREAD_PRIORITY 8
 
@@ -83,52 +83,8 @@
 #endif
 #include <rtdbg.h>
 
-#ifdef CMUX_DEBUG
-/**
- * dump cmux data according to hex format,you can see data what you receive
- *
- * @param data      the data what you want to dump out
- * @param len       the length of those data
- */
-static void hex_dump(const void *data, rt_size_t len)
-{
-    const size_t maxlen = 16;
-    rt_uint32_t offset = 0;
-    size_t curlen = 0, i = 0;
-    char line[16 * 4 + 3] = {0};
-    char *p = RT_NULL;
-    const unsigned char *src = data;
-
-    while (len > 0)
-    {
-        curlen = len < maxlen ? len : maxlen;
-        p = line;
-        for (i = 0; i < curlen; i++)
-        {
-            rt_sprintf(p, "%02x ", (unsigned char)src[i]);
-            p += 3;
-        }
-        rt_memset(p, ' ', (maxlen - curlen) * 3);
-        p += (maxlen - curlen) * 3;
-        *p++ = '|';
-        *p++ = ' ';
-        for (i = 0; i < curlen; i++)
-        {
-            *p++ = (0x20 < src[i] && src[i] < 0x7e) ? src[i] : '.';
-        }
-        *p++ = '\0';
-        LOG_D("[%04x] %s", offset, line);
-        len -= curlen;
-        src += curlen;
-        offset += curlen;
-    }
-}
-#endif
-
 static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type, const char *data, int length);
-
 static rt_slist_t cmux_list = RT_SLIST_OBJECT_INIT(cmux_list);
-
 /* only one cmux object can be created */
 static struct cmux *_g_cmux = RT_NULL;
 
@@ -303,8 +259,7 @@ static rt_err_t cmux_frame_push(struct cmux *cmux, int channel, struct cmux_fram
         LOG_D("new message for channel(%d) is append, Message total: %d.", channel, ++cmux->vcoms[channel].frame_index);
 
 #ifdef CMUX_DEBUG
-        LOG_D("CMUX_RX:");
-        hex_dump(frame->data, frame->data_length);
+        LOG_HEX("CMUX_RX", 32, frame->data, frame->data_length);
 #endif
         return RT_EOK;
     }
@@ -420,7 +375,7 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
         frame = (struct cmux_frame *)rt_malloc(sizeof(struct cmux_frame));
         frame->data = RT_NULL;
 
-        frame->channel = ((*data & 252) >> 2);
+        frame->channel = ((*data & 0xFC) >> 2);
         fcs = cmux_crctable[fcs ^ *data];
         INC_BUF_POINTER(buffer, data);
 
@@ -628,8 +583,7 @@ static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type
         return 0;
     }
 #ifdef CMUX_DEBUG
-    LOG_D("CMUX_TX:");
-    hex_dump(data, length);
+    LOG_HEX("CMUX_TX", 32, (const rt_uint8_t *)data, length);
 #endif
     return length;
 }
@@ -939,10 +893,11 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
 
         if (size >= vcom->frame->data_length)
         {
-            rt_memcpy(buffer, vcom->frame->data, vcom->frame->data_length);
+            int data_len = vcom->frame->data_length;
+            rt_memcpy(buffer, vcom->frame->data, data_len);
             cmux_frame_destroy(vcom->frame);
 
-            return vcom->frame->data_length;
+            return data_len;
         }
         else
         {
@@ -960,12 +915,15 @@ static rt_size_t cmux_vcom_read(struct rt_device *dev,
         /* transmit the rest of frame */
         if (vcom->length + size >= vcom->frame->data_length)
         {
+            size_t read_len;
             rt_memcpy(buffer, vcom->data, vcom->frame->data_length - vcom->length);
-            cmux_frame_destroy(vcom->frame);
-
             vcom->frame_using_status = 0;
 
-            return vcom->frame->data_length - vcom->length;
+            if (vcom->frame->data_length - vcom->length >= 0) {
+                read_len = vcom->frame->data_length - vcom->length;
+            }
+            cmux_frame_destroy(vcom->frame);
+            return read_len;
         }
         else
         {
