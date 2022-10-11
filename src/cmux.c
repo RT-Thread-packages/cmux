@@ -637,8 +637,7 @@ static int cmux_recv_thread(struct cmux *cmux)
 rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, void *user_data)
 {
     static rt_uint8_t count = 1;
-    char tid_name[16] = {0};
-    char event_name[16] = {0};
+    char tmp_name[RT_NAME_MAX] = {0};
     rt_base_t level;
 
     if (_g_cmux == RT_NULL)
@@ -654,7 +653,7 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
     if (object->dev == RT_NULL)
     {
         LOG_E("cmux can't find %s.", name);
-        return -RT_EOK;
+        return RT_EOK;
     }
 
     object->vcom_num = vcom_num;
@@ -673,8 +672,8 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
         return -RT_ENOMEM;
     }
 
-    rt_snprintf(event_name, sizeof(event_name), "cmuxevt%d", count);
-    object->event = rt_event_create(event_name, RT_IPC_FLAG_FIFO);
+    rt_snprintf(tmp_name, sizeof(tmp_name), "cmux%d", count);
+    object->event = rt_event_create(tmp_name, RT_IPC_FLAG_FIFO);
     if (object->event == RT_NULL)
     {
         LOG_E("cmux event malloc failed.");
@@ -690,8 +689,8 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
 
     rt_hw_interrupt_enable(level);
 
-    rt_snprintf(tid_name, sizeof(tid_name), "cmuxrecv%d", count);
-    object->recv_tid = rt_thread_create(tid_name,
+    rt_snprintf(tmp_name, sizeof(tmp_name), "cmux%d", count);
+    object->recv_tid = rt_thread_create(tmp_name,
                                         (void (*)(void *parameter))cmux_recv_thread,
                                         object,
                                         CMUX_THREAD_STACK_SIZE,
@@ -700,6 +699,7 @@ rt_err_t cmux_init(struct cmux *object, const char *name, rt_uint8_t vcom_num, v
     if (object->recv_tid == RT_NULL)
     {
         LOG_E("cmux receive thread create failed.");
+        return -RT_ERROR;
     }
 
     LOG_I("cmux rely on (%s) init successful.", name);
