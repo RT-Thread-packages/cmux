@@ -17,10 +17,17 @@
 extern "C" {
 #endif
 
-#define CMUX_BUFFER_SIZE   2048
+//#define CMUX_DEBUG
 
-#define CMUX_SW_VERSION           "1.0.0"
-#define CMUX_SW_VERSION_NUM       0x10000
+/* CMUX using long frame mode by default */
+#define CMUX_RECV_READ_MAX 2048
+
+#ifndef CMUX_BUFFER_SIZE
+#define CMUX_BUFFER_SIZE   (CMUX_RECV_READ_MAX * 2)
+#endif
+
+#define CMUX_SW_VERSION           "1.1.0"
+#define CMUX_SW_VERSION_NUM       0x10100
 
 struct cmux_buffer
 {
@@ -97,6 +104,8 @@ rt_err_t cmux_start(struct cmux *object);
 rt_err_t cmux_stop(struct cmux *object);
 rt_err_t cmux_attach(struct cmux *object, int port, const char *alias_name, rt_uint16_t flags, void *user_data);
 rt_err_t cmux_detach(struct cmux *object, const char *alias_name);
+void cmux_at_cmd_cfg(uint8_t mode, uint8_t subset, uint32_t port_speed, uint32_t N1, uint32_t T1, uint32_t N2,
+        uint32_t T2, uint32_t T3, uint32_t k);
 
 /* cmux_utils */
 rt_uint8_t cmux_frame_check(const rt_uint8_t *input, int length);
