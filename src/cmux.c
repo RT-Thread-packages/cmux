@@ -53,13 +53,7 @@
 /* Tells, how much free space there is in the buffer */
 #define cmux_buffer_free(buff) (((buff)->read_point > (buff)->write_point) ? ((buff)->read_point - (buff)->write_point) : (CMUX_BUFFER_SIZE - ((buff)->write_point - (buff)->read_point)))
 
-#define CMUX_RECV_READ_MAX 32
-
-#ifdef CMUX_DEBUG
-#define CMUX_THREAD_STACK_SIZE 1536
-#else
-#define CMUX_THREAD_STACK_SIZE 1024
-#endif
+#define CMUX_THREAD_STACK_SIZE (CMUX_RECV_READ_MAX + 1536)
 #define CMUX_THREAD_PRIORITY 8
 
 #define CMUX_RECIEVE_RESET 0
@@ -256,11 +250,12 @@ static rt_err_t cmux_frame_push(struct cmux *cmux, int channel, struct cmux_fram
         rt_slist_append(&cmux->vcoms[channel].flist, &frame_new->frame_list);
         rt_hw_interrupt_enable(level);
 
-        LOG_D("new message for channel(%d) is append, Message total: %d.", channel, ++cmux->vcoms[channel].frame_index);
-
 #ifdef CMUX_DEBUG
         LOG_HEX("CMUX_RX", 32, frame->data, frame->data_length);
 #endif
+
+        LOG_D("new message (len:%d) for channel (%d) is append, Message total: %d.", frame_new->frame->data_length, channel, ++cmux->vcoms[channel].frame_index);
+
         return RT_EOK;
     }
     LOG_E("malloc failed, the message for channel(%d) is long than CMUX_MAX_FRAME_LIST_LEN(%d).", channel, CMUX_MAX_FRAME_LIST_LEN);
@@ -296,7 +291,7 @@ static struct cmux_frame *cmux_frame_pop(struct cmux *cmux, int channel)
         rt_slist_remove(frame_list, frame_list_find);
         rt_hw_interrupt_enable(level);
 
-        LOG_D("new message for channel(%d) has been used, Message remain: %d.", channel, --cmux->vcoms[channel].frame_index);
+        LOG_D("A message (len:%d) for channel (%d) has been used, Message remain: %d.", frame_data->data_length, channel, --cmux->vcoms[channel].frame_index);
         rt_free(frame);
     }
 
@@ -395,7 +390,7 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
             LOG_D("len_need: %d, frame_data_len: %d.", length_needed, frame->data_length);
         }
         length_needed += frame->data_length;
-        if (!(cmux_buffer_length(buffer) >= length_needed))
+        if (cmux_buffer_length(buffer) < length_needed)
         {
             cmux_frame_destroy(frame);
             return RT_NULL;
@@ -478,9 +473,7 @@ static void cmux_recv_processdata(struct cmux *cmux, rt_uint8_t *buf, rt_size_t 
 
     cmux_buffer_write(cmux->buffer, buf, count);
 
-    frame = cmux_frame_parse(cmux->buffer);
-
-    if (frame != RT_NULL)
+    while ((frame = cmux_frame_parse(cmux->buffer)) != RT_NULL)
     {
         /* distribute different data */
         if ((CMUX_FRAME_IS(CMUX_FRAME_UI, frame) || CMUX_FRAME_IS(CMUX_FRAME_UIH, frame)))
@@ -564,7 +557,7 @@ static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type
     c = rt_device_write(dev, 0, prefix, prefix_length);
     if (c != prefix_length)
     {
-        LOG_D("Couldn't write the whole prefix to the serial port for the virtual port %d. Wrote only %d  bytes.", port, c);
+        LOG_E("Couldn't write the whole prefix to the serial port for the virtual port %d. Wrote only %d  bytes.", port, c);
         return 0;
     }
     if (length > 0)
@@ -572,14 +565,14 @@ static rt_size_t cmux_send_data(struct rt_device *dev, int port, rt_uint8_t type
         c = rt_device_write(dev, 0, data, length);
         if (length != c)
         {
-            LOG_D("Couldn't write all data to the serial port from the virtual port %d. Wrote only %d bytes.", port, c);
+            LOG_E("Couldn't write all data to the serial port from the virtual port %d. Wrote only %d bytes.", port, c);
             return 0;
         }
     }
     c = rt_device_write(dev, 0, postfix, 2);
     if (c != 2)
     {
-        LOG_D("Couldn't write the whole postfix to the serial port for the virtual port %d. Wrote only %d bytes.", port, c);
+        LOG_E("Couldn't write the whole postfix to the serial port for the virtual port %d. Wrote only %d bytes.", port, c);
         return 0;
     }
 #ifdef CMUX_DEBUG
