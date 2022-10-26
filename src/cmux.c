@@ -431,10 +431,9 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
         /* check FCS */
         if (cmux_crctable[fcs ^ (*data)] != 0xCF)
         {
-            LOG_W("Dropping frame: FCS doesn't match.");
+            LOG_W("Dropping frame: FCS doesn't match. Remain size: %d", cmux_buffer_length(buffer));
             cmux_frame_destroy(frame);
             buffer->flag_found = 0;
-            buffer->read_point = data;
             return cmux_frame_parse(buffer);
         }
         else
@@ -446,7 +445,6 @@ static struct cmux_frame *cmux_frame_parse(struct cmux_buffer *buffer)
                 LOG_W("Dropping frame: End flag not found. Instead: %d.", *data);
                 cmux_frame_destroy(frame);
                 buffer->flag_found = 0;
-                buffer->read_point = data;
                 return cmux_frame_parse(buffer);
             }
             else
